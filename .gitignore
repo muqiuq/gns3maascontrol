@@ -1,1 +1,4 @@
 /venv/
+.idea
+config.py
+user-data
