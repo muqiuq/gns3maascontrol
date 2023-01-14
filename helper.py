@@ -1,4 +1,5 @@
 import json
+import os.path
 from typing import List
 
 import requests
@@ -8,6 +9,9 @@ from maas.client.facade import Client
 
 
 def load_config(config_filepath: str = "config.yaml"):
+    if not os.path.exists(config_filepath):
+        print("config.yaml could not be found in current directory")
+        raise Exception("config.yaml not found")
     with open(config_filepath, mode="rt", encoding="utf-8") as file:
         config = yaml.safe_load(file)
     return config

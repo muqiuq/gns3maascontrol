@@ -10,11 +10,6 @@ from maasclientwrapper import MaasClientWrapper
 app = typer.Typer()
 
 
-@app.command()
-def checkconfig():
-    print(helper.load_config())
-
-
 @app.command(help="List all hosts with MAAS controller and gns3-cloudinit-backend information")
 def listhosts():
     config = helper.load_config()
