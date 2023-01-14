@@ -1,4 +1,0 @@
-
-host = "http://10.1.40.33:5240/MAAS"
-username = "sysadm"
-password = ""
