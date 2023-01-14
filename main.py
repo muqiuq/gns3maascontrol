@@ -1,59 +1,111 @@
-import sys
-import time
+import base64
+import os
+from pathlib import Path
+from typing import List
 
-import requests
-from maas.client import login
+import typer
 from maas.client.enum import NodeStatus
-from maas.client.facade import Client
-from maas.client.viscera.machines import Machine
+from typing_extensions import Required
 
-# http://maas.github.io/python-libmaas/
-import config
+import helper
+from maasclientwrapper import MaasClientWrapper
 
-client: Client = login(
-    config.host,
-    username=config.username, password=config.password,
-)
-tmpl = "{0.hostname} {1.name} {1.mac_address}"
+app = typer.Typer()
 
-machines = client.machines.list()
-
-machine: Machine = client.machines.get(system_id='4ghh3c')
+@app.command()
+def checkconfig():
+    print(helper.load_config())
 
 
+@app.command(help="List all hosts with MAAS controller and gns3-cloudinit-backend information")
+def listhosts():
+    config = helper.load_config()
+    client = MaasClientWrapper(config)
+    protected_hosts = helper.get_protected_hosts(config)
+    comments = helper.get_comments(config)
 
-with open('user-data', 'r') as file:
-    userdata = file.read()
+    gns3_state = helper.get_gns3_state(config)
 
+    machines_unsorted = client.machines()
+    machines = {}
 
-if machine.status != NodeStatus.READY:
-    print("Machine ist not ready: ", machine.status_name)
-    sys.exit(0)
+    for um in machines_unsorted:
+        machines[um.hostname] = um
 
+    machines = dict(sorted(machines.items()))
 
-if machine.status != NodeStatus.ALLOCATED:
-    print("Allocating...")
-    machine: Machine = client.machines.allocate(hostname=machine.hostname)
-
-
-machine.deploy(user_data=userdata)
-
-print("Deploying...")
-
-while machine.status == NodeStatus.DEPLOYING:
-    time.sleep(1)
-    machine.refresh()
-
-print(machine.status)
-
-code = 0
-
-print("Waiting for GNS3 setup...")
-
-while code != 200:
-    r = requests.get('http://10.1.40.33/gns3cloudinit/keys/Cloud-HF-27.json')
-    code = r.status_code
-    time.sleep(1)
+    for km in machines:
+        m = machines[km]
+        protected = True if (m.hostname in protected_hosts) else False
+        gns3info = ""
+        comment = ""
+        if m.hostname in gns3_state and m.status == NodeStatus.DEPLOYED:
+            gns3info = f"GNS3 Version {gns3_state[m.hostname]['gns3version']} Deployed: {gns3_state[m.hostname]['created']}"
+        if m.hostname in comments:
+            comment = comments[m.hostname]
+        print(f"{m.fqdn} {m.hostname} {m.system_id} {m.status.name} {m.power_state} {gns3info}{' PROTECTED ' if protected else ' '}- {comment}")
 
 
-print("Done")
+@app.command(help="set comment for number of machines", name="comment")
+def submit_comment(hosts: List[str], comment: str = typer.Option(...)):
+    config = helper.load_config()
+    hosts = helper.decode_host_list(hosts)
+    data = {}
+
+    for host in hosts:
+        data[f'{config["hostprefix"]}{host}'] = comment
+
+    print(helper.update_comments(config, data))
+
+
+@app.command(help="Download keys from gns3-cloudinit-backend and save it to the desired folder")
+def downloadkeys(hosts: List[str], outputfolder: Path = typer.Option(..., exists=False, dir_okay=True, file_okay=False, writable=True, resolve_path=True)):
+    config = helper.load_config()
+    hosts = helper.decode_host_list(hosts)
+    gns3_states = helper.get_gns3_state(config)
+
+    if not outputfolder.exists():
+        print("output folder does not exists, creating it.")
+        outputfolder.mkdir()
+
+    print(outputfolder)
+
+    for gs in gns3_states:
+        hostparts = gs.split("-")
+        if hostparts[2] in hosts:
+            ovpnb64 = gns3_states[gs]["ovpn"]
+            ovpn = base64.b64decode(ovpnb64)
+            with open(os.path.join(outputfolder.absolute(), f"{gs}.ovpn"), "wb") as fp:
+                fp.write(ovpn)
+
+
+@app.command(help="release list of hosts")
+def release(hosts: List[str], commit: bool = False):
+    hosts = helper.decode_host_list(hosts)
+    config = helper.load_config()
+    client = MaasClientWrapper(config)
+    protected_hosts = helper.get_protected_hosts(config)
+
+    client.release(hosts, protected_hosts, commit)
+
+
+@app.command(help="deploy list of hosts")
+def deploy(hosts: List[str], commit: bool = False, comment: str = typer.Option(...)):
+    hosts = helper.decode_host_list(hosts)
+    config = helper.load_config()
+    client = MaasClientWrapper(config)
+    protected_hosts = helper.get_protected_hosts(config)
+    user_data = helper.get_user_data(config)
+
+    if not user_data.startswith("#cloud-config"):
+        print("error: received invalid user-data")
+        return
+
+    client.deploy(hosts, protected_hosts, user_data, commit)
+
+    submit_comment(hosts, comment)
+
+
+
+if __name__ == "__main__":
+    app()

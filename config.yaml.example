@@ -1,0 +1,9 @@
+maas:
+  url: "http://IP:5240/MAAS"
+  username: ""
+  password: ""
+gns3cloudinithelper:
+  url: "http://IP/gns3cloudinit/"
+  username: ""
+  password: ""
+hostprefix: ""
