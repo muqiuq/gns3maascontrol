@@ -4,3 +4,7 @@ config.py
 user-data
 config.yaml
 .pytest_cache
+
+build/
+
+dist/

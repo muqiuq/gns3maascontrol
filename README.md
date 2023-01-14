@@ -2,6 +2,28 @@
 
 gns3maascontrol was developed to facilitate the deployment of node in the [TBZ Cloud GNS3 environment](https://gitlab.com/ch-tbz-it/Stud/allgemein/tbzcloud-gns3).
 
+## Get started - Windows
+
+### Requirements
+ - python3.9 or newer
+ - git
+ - Windows 10 or newer
+
+**Powershell:**
+```shell
+$ git clone https://github.com/muqiuq/gns3maascontrol
+$ cd gns3maascontrol
+$ python -m venv venv
+$ .\venv\Scripts\Activate.ps1
+$ pip3 install -r requirements.txt
+```
+Before starting `main.py` copy `config.yaml` into gns3maascontrol directory. 
+
+```
+$ python main.py
+```
+
+
 ## Usage
 
 ### Requirements
