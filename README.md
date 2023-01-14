@@ -1,6 +1,6 @@
 # GNS3 MAAS Control CLI tool
 
-gns3maascontrol was developed to facilitate the deployment of node in the [TBZ Cloud GNS3 environment](https://gitlab.com/ch-tbz-it/Stud/allgemein/tbzcloud-gns3).
+gns3maascontrol was developed to facilitate the deployment of nodes in the [TBZ Cloud GNS3 environment](https://gitlab.com/ch-tbz-it/Stud/allgemein/tbzcloud-gns3).
 
 ## Get started - Windows
 
