@@ -25,6 +25,8 @@ class MaasClientWrapper:
 
         machines = client.machines.list()
 
+        released_machines = []
+
         released = 0
         skipped = 0
         total = 0
@@ -43,6 +45,7 @@ class MaasClientWrapper:
                     print(f"Releasing {m.hostname}")
                     if commit:
                         m.release(quick_erase=True, erase=True)
+                        released_machines.append(m.hostname)
                     released += 1
                 else:
                     print(f"host {m.hostname} is not deployed. Currently in status: {m.status}")
@@ -50,6 +53,8 @@ class MaasClientWrapper:
         print(f"Skipped: {skipped}")
         print(f"Released: {released}")
         print(f"Number of machines: {total}")
+
+        return released_machines
 
     @staticmethod
     def _deploy_machine(client: Client, m: Machine, user_data: str, commit: bool = False):
@@ -69,6 +74,8 @@ class MaasClientWrapper:
 
         machines = client.machines.list()
 
+        deployed_machines = []
+
         deployed = 0
         skipped = 0
         total = 0
@@ -83,18 +90,22 @@ class MaasClientWrapper:
                 if protected:
                     print(f"Host {m.hostname} is protected cannot release => Skipping")
                     skipped += 1
-                elif m.status == NodeStatus.ALLOCATED:
+                elif m.status == NodeStatus.ALLOCATED or m.status == NodeStatus.READY:
                     if self._deploy_machine(client, m, user_data, commit):
                         print("Deployed {0}".format(m.hostname))
                         deployed += 1
+                        deployed_machines.append(m.hostname)
                     else:
                         print("Deploy error {0}".format(m.hostname))
                 else:
                     print(f"Cannot deploy {m.hostname}. Host not ready. Release first.")
+                    skipped += 1
 
         print(f"Skipped: {skipped}")
         print(f"Deployed: {deployed}")
         print(f"Number of machines: {total}")
+
+        return deployed_machines
 
     def machines(self):
         client = self._getclient()

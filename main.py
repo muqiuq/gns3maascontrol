@@ -2,15 +2,13 @@ import base64
 import os
 from pathlib import Path
 from typing import List
-
 import typer
 from maas.client.enum import NodeStatus
-from typing_extensions import Required
-
 import helper
 from maasclientwrapper import MaasClientWrapper
 
 app = typer.Typer()
+
 
 @app.command()
 def checkconfig():
@@ -69,6 +67,7 @@ def downloadkeys(hosts: List[str], outputfolder: Path = typer.Option(..., exists
         outputfolder.mkdir()
 
     print(outputfolder)
+    downloaded = 0
 
     for gs in gns3_states:
         hostparts = gs.split("-")
@@ -77,6 +76,9 @@ def downloadkeys(hosts: List[str], outputfolder: Path = typer.Option(..., exists
             ovpn = base64.b64decode(ovpnb64)
             with open(os.path.join(outputfolder.absolute(), f"{gs}.ovpn"), "wb") as fp:
                 fp.write(ovpn)
+                downloaded += 1
+
+    print(f"Downloaded {downloaded} keys")
 
 
 @app.command(help="release list of hosts")
@@ -86,7 +88,9 @@ def release(hosts: List[str], commit: bool = False):
     client = MaasClientWrapper(config)
     protected_hosts = helper.get_protected_hosts(config)
 
-    client.release(hosts, protected_hosts, commit)
+    released_machines = client.release(hosts, protected_hosts, commit)
+
+    print(helper.delete_keys(config, released_machines))
 
 
 @app.command(help="deploy list of hosts")
@@ -101,10 +105,14 @@ def deploy(hosts: List[str], commit: bool = False, comment: str = typer.Option(.
         print("error: received invalid user-data")
         return
 
-    client.deploy(hosts, protected_hosts, user_data, commit)
+    deployed_machines = client.deploy(hosts, protected_hosts, user_data, commit)
 
-    submit_comment(hosts, comment)
+    deployed_machines_with_comment = {}
 
+    for host in deployed_machines:
+        deployed_machines_with_comment[host] = comment
+
+    print(helper.update_comments(config, deployed_machines_with_comment))
 
 
 if __name__ == "__main__":

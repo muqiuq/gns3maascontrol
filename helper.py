@@ -36,7 +36,13 @@ def get_comments(config):
 def update_comments(config, comments) -> str:
     req_data = {"submit":"comments", "data": comments}
     res = requests.post(config["gns3cloudinithelper"]["url"] + "/comment.php", json=req_data)
-    return res.content
+    return res.content.decode("utf-8")
+
+
+def delete_keys(config, hosts) -> str:
+    req_data = {"submit": "delete", "data": hosts}
+    res = requests.post(config["gns3cloudinithelper"]["url"] + "/delete.php", json=req_data)
+    return res.content.decode("utf-8")
 
 
 def decode_host_list(hosts: List[str]) -> List[str]:
