@@ -1,11 +1,13 @@
 import base64
 import os
+import random
 from pathlib import Path
 from typing import List
 import typer
 from maas.client.enum import NodeStatus
 import helper
 from maasclientwrapper import MaasClientWrapper
+from userdata import UserData
 
 app = typer.Typer()
 
@@ -94,11 +96,14 @@ def deploy(hosts: List[str], commit: bool = False, comment: str = typer.Option(.
     config = helper.load_config()
     client = MaasClientWrapper(config)
     protected_hosts = helper.get_protected_hosts(config)
-    user_data = helper.get_user_data(config)
+    user_data_str = helper.get_user_data(config)
+    host_patterns = helper.get_host_patterns(config)
 
-    if not user_data.startswith("#cloud-config"):
+    if not user_data_str.startswith("#cloud-config"):
         print("error: received invalid user-data")
         return
+
+    user_data = UserData(user_data_str, host_patterns)
 
     deployed_machines = client.deploy(hosts, protected_hosts, user_data, commit)
 
@@ -108,6 +113,27 @@ def deploy(hosts: List[str], commit: bool = False, comment: str = typer.Option(.
         deployed_machines_with_comment[host] = comment
 
     print(helper.update_comments(config, deployed_machines_with_comment))
+
+
+@app.command(help="get user-data for ip")
+def userdata(ip: str):
+    config = helper.load_config()
+    user_data_str = helper.get_user_data(config)
+    host_patterns = helper.get_host_patterns(config)
+
+    if not user_data_str.startswith("#cloud-config"):
+        print("error: received invalid user-data")
+        return
+
+    user_data = UserData(user_data_str, host_patterns)
+
+    randomfilename = f"user-data.{random.randint(10000,99999)}.txt"
+
+    with open(randomfilename, "w") as fp:
+        fp.write(user_data.get_user_data_for_ip(ip))
+
+    print(randomfilename)
+
 
 
 if __name__ == "__main__":

@@ -27,6 +27,11 @@ def get_user_data(config) -> str:
     return res.content.decode("utf-8")
 
 
+def get_host_patterns(config) -> List:
+    res = requests.get(config["gns3cloudinithelper"]["url"] + "/host-patterns.json")
+    return json.loads(res.content.decode("utf-8"))
+
+
 def get_gns3_state(config):
     res = requests.get(config["gns3cloudinithelper"]["url"] + "/list.php?token=vrb2-t7vd-bw8x")
     return json.loads(res.content.decode("utf-8"))

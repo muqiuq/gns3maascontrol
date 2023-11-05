@@ -5,6 +5,8 @@ from maas.client.enum import NodeStatus
 from maas.client.facade import Client
 from maas.client.viscera.machines import Machine
 
+from userdata import UserData
+
 
 class MaasClientWrapper:
 
@@ -37,7 +39,7 @@ class MaasClientWrapper:
             protected = True if (m.hostname in protected_hosts) else False
             total += 1
             hostparts = m.hostname.split("-")
-            if hostparts[2] in hosts:
+            if len(hostparts) >= 3 and hostparts[2] in hosts:
                 if protected:
                     print(f"Host {m.hostname} is protected cannot release")
                     skipped += 1
@@ -69,7 +71,7 @@ class MaasClientWrapper:
 
         return True
 
-    def deploy(self, hosts: List[str], protected_hosts: List[str], user_data: str, commit: bool = False):
+    def deploy(self, hosts: List[str], protected_hosts: List[str], user_data: UserData, commit: bool = False):
         client = self._getclient()
 
         machines = client.machines.list()
@@ -80,18 +82,19 @@ class MaasClientWrapper:
         skipped = 0
         total = 0
 
-        print("This is not a drill. Host will be released." if commit else "Dry run. No hosts will be released.")
+        print("This is not a drill. Host will be deployed." if commit else "Dry run. No hosts will be deployed.")
 
         for m in machines:
             protected = True if (m.hostname in protected_hosts) else False
             total += 1
             hostparts = m.hostname.split("-")
-            if hostparts[2] in hosts:
+            if len(hostparts) >= 3 and hostparts[2] in hosts:
                 if protected:
                     print(f"Host {m.hostname} is protected cannot release => Skipping")
                     skipped += 1
                 elif m.status == NodeStatus.ALLOCATED or m.status == NodeStatus.READY:
-                    if self._deploy_machine(client, m, user_data, commit):
+                    user_data_str = user_data.get_user_data_for_ip(m.ip_addresses[0])
+                    if self._deploy_machine(client, m, user_data_str, commit):
                         print("Deployed {0}".format(m.hostname))
                         deployed += 1
                         deployed_machines.append(m.hostname)
